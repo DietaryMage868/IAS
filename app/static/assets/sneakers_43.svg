@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgsn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="shoe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="28" fill="url(#bgsn)"/>
+  <circle cx="300" cy="290" r="210" fill="#6366f1" opacity="0.15"/>
+  <!-- Sneaker Silhouette -->
+  <path d="M130 360 L150 230 L240 245 L335 305 L465 320 C490 325, 495 365, 480 385 L125 385 Z" fill="url(#shoe)" stroke="#e0e7ff" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Sole -->
+  <rect x="115" y="380" width="375" height="36" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="3"/>
+  <circle cx="195" cy="398" r="9" fill="#ec4899"/>
+  <circle cx="235" cy="398" r="9" fill="#6366f1"/>
+  <text x="300" y="525" text-anchor="middle" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="24" font-weight="700">КРОСІВКИ AIR PULSE</text>
+  <text x="300" y="558" text-anchor="middle" fill="#f472b6" font-family="system-ui, sans-serif" font-size="16" font-weight="600">🔥 Залишилась 1 пара (Розмір 43) • $80.00</text>
+</svg>

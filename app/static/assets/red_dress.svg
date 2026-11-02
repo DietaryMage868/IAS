@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgrd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#450a0a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="dressrd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="28" fill="url(#bgrd)"/>
+  <circle cx="300" cy="290" r="200" fill="#ef4444" opacity="0.15"/>
+  <path d="M255 120 L270 190 L330 190 L345 120 M255 190 L345 190 L335 280 L435 470 L165 470 L265 280 Z" fill="url(#dressrd)" stroke="#fecaca" stroke-width="4" stroke-linejoin="round"/>
+  <text x="300" y="535" text-anchor="middle" fill="#fee2e2" font-family="system-ui, sans-serif" font-size="24" font-weight="700">ЧЕРВОНА СУКНЯ (RED DRESS)</text>
+  <text x="300" y="565" text-anchor="middle" fill="#fca5a5" font-family="system-ui, sans-serif" font-size="16">Розміри: S, M • Edge Case Demo</text>
+</svg>

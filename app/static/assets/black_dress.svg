@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgbk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="dressbk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3f3f46"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="28" fill="url(#bgbk)"/>
+  <circle cx="300" cy="290" r="200" fill="#71717a" opacity="0.12"/>
+  <path d="M255 120 L270 190 L330 190 L345 120 M255 190 L345 190 L335 280 L435 470 L165 470 L265 280 Z" fill="url(#dressbk)" stroke="#a1a1aa" stroke-width="4" stroke-linejoin="round"/>
+  <line x1="265" y1="280" x2="335" y2="280" stroke="#e4e4e7" stroke-width="3"/>
+  <text x="300" y="535" text-anchor="middle" fill="#f4f4f5" font-family="system-ui, sans-serif" font-size="24" font-weight="700">ЧОРНА СУКНЯ (MIDNIGHT)</text>
+  <text x="300" y="565" text-anchor="middle" fill="#a1a1aa" font-family="system-ui, sans-serif" font-size="16">Категорія: Літні сукні • S, M, L</text>
+</svg>

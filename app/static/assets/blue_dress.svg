@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgbl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c4a6e"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="dressbl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="28" fill="url(#bgbl)"/>
+  <circle cx="300" cy="290" r="200" fill="#0ea5e9" opacity="0.16"/>
+  <path d="M255 120 L270 190 L330 190 L345 120 M255 190 L345 190 L335 280 L435 470 L165 470 L265 280 Z" fill="url(#dressbl)" stroke="#bae6fd" stroke-width="4" stroke-linejoin="round"/>
+  <line x1="265" y1="280" x2="335" y2="280" stroke="#e0f2fe" stroke-width="4"/>
+  <text x="300" y="535" text-anchor="middle" fill="#e0f2fe" font-family="system-ui, sans-serif" font-size="24" font-weight="700">СИНЯ СУКНЯ (BREEZE)</text>
+  <text x="300" y="565" text-anchor="middle" fill="#7dd3fc" font-family="system-ui, sans-serif" font-size="16">Категорія: Літні сукні • S, M, L</text>
+</svg>

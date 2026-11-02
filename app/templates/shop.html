@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  {% if is_preview_mode %}
+  <!-- Edge Case B: Prevent search engines from indexing seller draft preview links -->
+  <meta name="robots" content="noindex, nofollow" />
+  {% endif %}
+  <title>{{ shop.name }} — Instant AI Storefront (PayPal AI Hackathon)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    @keyframes pulse-amber {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.45); }
+      50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+    }
+    .draft-glow {
+      animation: pulse-amber 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#090d16] text-slate-100 selection:bg-amber-400 selection:text-slate-950">
+
+  <!-- ===================================================================== -->
+  <!-- FIXED NON-REMOVABLE SELLER PREVIEW BANNER (Edge Case B)               -->
+  <!-- ===================================================================== -->
+  <div id="preview-banner" class="{% if not is_preview_mode %}hidden{% endif %} sticky top-0 z-50 bg-amber-400 text-slate-950 px-4 py-2.5 shadow-lg border-b-2 border-amber-500">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 font-bold text-sm md:text-base">
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-950 text-amber-400 text-xs">👁</span>
+        <span>Режим перегляду продавця (Preview Mode)</span>
+        <span id="preview-token-pill" class="mono text-xs bg-slate-950/15 px-2 py-0.5 rounded border border-slate-950/20">
+          token: {{ preview_token }}
+        </span>
+        <span class="text-xs bg-slate-950 text-amber-300 px-2 py-0.5 rounded font-semibold">
+          &lt;meta name="robots" content="noindex, nofollow"&gt;
+        </span>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-semibold">
+        <span id="preview-ttl-label" class="bg-amber-300 px-2.5 py-1 rounded border border-slate-950/20">
+          ⏳ Дійсний ще: 15:00
+        </span>
+        <button onclick="exitPreviewMode()" class="px-3 py-1 rounded bg-slate-950 text-white hover:bg-slate-800 transition">
+          Повернутися до публічної вітрини ✕
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOP NAVIGATION & HACKATHON CONTROL BAR                                -->
+  <!-- ===================================================================== -->
+  <header class="border-b border-slate-800/80 bg-slate-900/75 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-amber-400 flex items-center justify-center shadow-md shadow-blue-500/20 font-extrabold text-slate-950 text-lg">
+          IAS
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="shop-name-title" class="font-bold text-base md:text-lg tracking-tight text-white">{{ shop.name }}</h1>
+            <span class="mono text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">/shop/{{ shop.id }}</span>
+          </div>
+          <p class="text-xs text-slate-400 flex items-center gap-2">
+            <span>Zero-Form AI E-Commerce</span>
+            <span>•</span>
+            <span class="text-amber-300 font-medium">PayPal Native Checkout</span>
+            <span>•</span>
+            <span id="merchant-badge" class="mono text-[11px] text-emerald-400">payee: {{ shop.paypal_merchant_id }}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- View Mode & Quick Controls -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Buyer Persona Switcher for Scenario 3 Concurrency Test -->
+        <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+          <span class="px-2 text-slate-400 hidden sm:inline">Сесія покупця:</span>
+          <button id="btn-buyer-a" onclick="switchBuyerPersona('A')" class="px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition">
+            👤 Покупець А
+          </button>
+          <button id="btn-buyer-b" onclick="switchBuyerPersona('B')" class="px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition">
+            👥 Покупець Б (Concurrency)
+          </button>
+        </div>
+
+        <!-- Toggle Split-Screen vs Storefront Only -->
+        <button id="btn-toggle-studio" onclick="toggleStudioPanel()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/30 transition flex items-center gap-1.5">
+          <span>📱 Telegram AI Studio</span>
+          <span id="studio-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </button>
+
+        <!-- PayPal OAuth / API Config Modal Button -->
+        <button onclick="openSettingsModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          ⚙️ PayPal OAuth & Keys
+        </button>
+
+        <!-- Reset Demo State -->
+        <button onclick="resetDemoData()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition" title="Скинути базу до початкового стану для повторного проходження сценаріїв">
+          ↺ Скинути Демо
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE: SPLIT-SCREEN (STOREFRONT LEFT + TELEGRAM STUDIO RIGHT)-->
+  <!-- ===================================================================== -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 md:p-6">
+
+    <!-- =================================================================== -->
+    <!-- LEFT COLUMN: PUBLIC / PREVIEW WEB STOREFRONT (/shop/123)            -->
+    <!-- =================================================================== -->
+    <section id="storefront-column" class="lg:col-span-7 xl:col-span-7 flex flex-col gap-6">
+
+      <!-- Storefront Hero & Active Buyer Status Banner -->
+      <div class="rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-slate-800 p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium mb-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span>PayPal Partner Referrals Connected • One-Click Checkout</span>
+            </div>
+            <h2 class="text-xl md:text-2xl font-extrabold text-white">Вітрина магазину <span id="hero-shop-currency" class="text-amber-400">(USD)</span></h2>
+            <p class="text-xs md:text-sm text-slate-300 mt-1 max-w-2xl">
+              Жодної форми не заповнено вручну. Усі товари створені та відредаговані продавцем через голосові та фото-повідомлення у Telegram.
+            </p>
+          </div>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-right">
+            <div class="text-[11px] uppercase tracking-wider text-slate-400">Активний покупець у браузері</div>
+            <div id="active-buyer-indicator" class="text-sm font-bold text-blue-400 mt-0.5">👤 Покупець А (buyer@example.com)</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Бронювання кошика: <span class="text-amber-300 font-semibold">15 хв (Anti-Oversell)</span></div>
+          </div>
+        </div>
+
+        <!-- Active Reservation Lock Bar (Visible during Scenario 3) -->
+        <div id="active-reservations-bar" class="hidden mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <span>🛍 Актуальний каталог товарів</span>
+            <span id="catalog-count-badge" class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs">0</span>
+          </h3>
+          <span class="text-xs text-slate-400">Strict Fact Extracting • Zero Hallucination</span>
+        </div>
+
+        <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Dynamically populated by renderStorefront() -->
+        </div>
+      </div>
+
+      <!-- Completed PayPal Orders & Fulfillment Tracking Table (Scenarios 3 & 4) -->
+      <div class="rounded-2xl bg-slate-900/90 border border-slate-800 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="font-bold text-sm uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <span>📦 Замовлення PayPal & Відстеження доставки (Fulfillment)</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Автоматична синхронізація трек-номерів Нової Пошти через <code class="mono text-amber-300">POST /v2/checkout/orders/{id}/track</code>
+            </p>
+          </div>
+          <span id="orders-count-badge" class="px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 text-xs font-semibold">
+            0 замовлень
+          </span>
+        </div>
+
+        <div id="orders-list" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- RIGHT COLUMN: INTERACTIVE TELEGRAM AI BOT STUDIO (SELLER VIEW)      -->
+    <!-- =================================================================== -->
+    <aside id="studio-column" class="lg:col-span-5 xl:col-span-5 flex flex-col">
+      <div class="sticky top-20 rounded-2xl bg-[#0e1621] border border-slate-800 shadow-2xl flex flex-col h-[calc(100vh-6.5rem)] min-h-[640px] overflow-hidden">
+
+        <!-- Telegram Header -->
+        <div class="bg-[#17212b] px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white font-bold shadow">
+              🤖
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-white">IAS Storefront AI Bot</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">BOT</span>
+              </div>
+              <div id="bot-engine-status" class="text-[11px] text-emerald-400">online • Zero-Form Voice & Photo Ingestion</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="mono text-[11px] text-slate-400">{{ shop.telegram_username }}</span>
+          </div>
+        </div>
+
+        <!-- 1-Click Hackathon Scenario Bar -->
+        <div class="bg-[#131c26] px-3 py-2.5 border-b border-slate-800/90">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-sky-400 mb-1.5 flex items-center justify-between">
+            <span>⚡ Сценарії для демонстрації журі (1-клік пресети):</span>
+            <span class="text-slate-400 font-normal">або пишіть/говоріть нижче</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <button onclick="runScenarioPreset('scenario_1_create')" class="text-left px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-[11px] font-medium transition">
+              1️⃣ Створити товар (2 фото + голос)
+            </button>
+            <button onclick="runScenarioPreset('scenario_2_bulk_edit')" class="text-left px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-200 text-[11px] font-medium transition">
+              2️⃣ Розпродаж суконь -10% (Diff)
+            </button>
+            <button onclick="highlightScenario3()" class="text-left px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-200 text-[11px] font-medium transition">
+              3️⃣ Купівля кросівок 43 (Concurrency)
+            </button>
+            <button onclick="runScenarioPreset('scenario_4_fulfillment')" class="text-left px-2.5 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-200 text-[11px] font-medium transition">
+              4️⃣ ТТН Нової Пошти ➔ PayPal Track
+            </button>
+            <button onclick="runScenarioPreset('scenario_5_non_commercial')" class="text-left px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-200 text-[11px] font-medium transition">
+              5️⃣ Шум / Фото кота (Відхилення)
+            </button>
+            <div class="flex gap-1">
+              <button onclick="runScenarioPreset('edge_case_missing_price')" class="flex-1 text-center px-1.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-200 text-[10px] font-medium transition" title="Edge Case A1: Відсутність ціни у голосовому">
+                ⚠️ Без ціни
+              </button>
+              <button onclick="runScenarioPreset('edge_case_surzhyk_uah')" class="flex-1 text-center px-1.5 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 text-teal-200 text-[10px] font-medium transition" title="Edge Case A2: Суржик 'двісті грн' у магазині з USD">
+                💱 200 грн
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Messages Stream -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0e1621]">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Staged Attachments Preview Bar -->
+        <div id="staged-attachments" class="hidden px-3 py-2 bg-[#17212b] border-t border-slate-800 flex items-center gap-2 overflow-x-auto">
+        </div>
+
+        <!-- Telegram Input Composer -->
+        <div class="p-3 bg-[#17212b] border-t border-slate-800">
+          <form onsubmit="submitSellerMessage(event)" class="flex items-center gap-2">
+            <!-- Upload Photo Button -->
+            <label class="cursor-pointer p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Прикріпити фото товару або квитанції">
+              📎
+              <input id="bot-file-input" type="file" accept="image/*" class="hidden" onchange="handleFileUpload(event)" />
+            </label>
+
+            <!-- Voice Input (Web Speech API / Voice Note Toggle) -->
+            <button type="button" id="btn-voice-record" onclick="toggleVoiceRecording()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 transition" title="Наговорити голосове повідомлення (Web Speech API)">
+              🎙
+            </button>
+
+            <input
+              id="bot-text-input"
+              type="text"
+              placeholder="Напишіть або наговоріть команду боту..."
+              class="flex-1 bg-[#0e1621] text-sm text-white rounded-xl px-3.5 py-2.5 border border-slate-700/80 focus:outline-none focus:border-sky-500"
+            />
+
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm transition shadow">
+              ➤
+            </button>
+          </form>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- PAYPAL SANDBOX CHECKOUT MODAL (SCENARIO 3: 15-MIN LOCK & CAPTURE)     -->
+  <!-- ===================================================================== -->
+  <div id="paypal-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded bg-[#ffc439] text-slate-950 font-extrabold text-xs tracking-wide">PayPal</span>
+          <span class="text-sm font-bold text-white">Sandbox Native Checkout</span>
+        </div>
+        <span id="modal-reservation-timer" class="mono text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+          🔒 Бронь: 15:00
+        </span>
+      </div>
+
+      <div class="py-4 space-y-3">
+        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200">
+          ✅ <b>Резерв створено (`stock_reserved = 1` на 15 хв)!</b><br/>
+          Поки це вікно відкрите, можете перемкнути вкладку у шапці на <b>«👥 Покупець Б»</b> і переконатися, що інший покупець бачить бейдж <i>«Товар зарезервовано іншим покупцем»</i>.
+        </div>
+
+        <div class="bg-slate-950 rounded-xl p-3.5 border border-slate-800 text-xs space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Товар та розмір:</span>
+            <span id="modal-item-title" class="font-bold text-white"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Сума до сплати:</span>
+            <span id="modal-item-amount" class="font-bold text-amber-400 text-sm"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">PayPal Order ID:</span>
+            <span id="modal-paypal-order-id" class="mono text-sky-300"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Отримувач (payee.merchant_id):</span>
+            <span id="modal-payee-id" class="mono text-emerald-400"></span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Email покупця (для квитанції та PayPal Tracking):</label>
+          <input id="modal-buyer-email" type="email" value="buyer@example.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="confirmPayPalCapture()" class="w-full py-3 rounded-xl bg-[#ffc439] hover:bg-[#f4b41a] text-slate-950 font-extrabold text-sm transition shadow-lg flex items-center justify-center gap-2">
+          <span>💳 Підтвердити оплату PayPal (1-Click Capture)</span>
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="keepModalMinimizedForBuyerBTest()" class="py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 font-semibold text-xs transition">
+            👥 Перевірити як Покупець Б
+          </button>
+          <button onclick="cancelPayPalReservation('Покупець закрив вікно PayPal / 15 хв минуло')" class="py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-semibold text-xs transition">
+            ❌ Скасувати / Зняти бронь
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- SETTINGS & PAYPAL PARTNER REFERRALS MODAL (EDGE CASE C)               -->
+  <!-- ===================================================================== -->
+  <div id="settings-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-white">⚙️ Налаштування мульти-тенантного магазину & API</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-200">
+          <b>Мультитенантність (PayPal Partner Referrals):</b> Кожен магазин зберігає свій <code class="mono">merchant_id</code>. Гроші при оплаті через <code class="mono">payee.merchant_id</code> зараховуються безпосередньо продавцю.
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Валюта магазину:</label>
+            <select id="cfg-shop-currency" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+              <option value="USD">USD ($ Долар США)</option>
+              <option value="UAH">UAH (₴ Гривня)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">PayPal Merchant ID продавця:</label>
+            <input id="cfg-merchant-id" type="text" value="{{ shop.paypal_merchant_id }}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white mono" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Google Gemini API Key (опціонально — без ключа працює Smart NLP Engine):</label>
+          <input id="cfg-gemini-key" type="password" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white mono" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">PayPal Sandbox Client ID:</label>
+            <input id="cfg-paypal-client" type="text" placeholder="AaBbCc..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white mono" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">PayPal Sandbox Secret:</label>
+            <input id="cfg-paypal-secret" type="password" placeholder="EeFfGg..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white mono" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="simulatePayPalOAuthConnect()" class="px-3 py-2 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-semibold hover:bg-amber-400/30">
+          🔗 Перепідключити через PayPal OAuth
+        </button>
+        <button onclick="saveRuntimeSettings()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">
+          Зберегти налаштування
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER                                          -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm"></div>
+
+  <!-- ===================================================================== -->
+  <!-- APPLICATION JAVASCRIPT                                                -->
+  <!-- ===================================================================== -->
+  <script>
+    const SHOP_ID = {{ shop.id }};
+    let appState = {{ initial_state | tojson }};
+    let currentPreviewToken = {{ preview_token | tojson }} || null;
+
+    // Buyer persona state for Scenario 3 Concurrency testing
+    let currentBuyer = {
+      persona: 'A',
+      label: 'Покупець А',
+      sessionId: 'session_buyer_a_001',
+      email: 'buyer@example.com'
+    };
+
+    // Selected variant per product ID
+    let selectedVariants = {};
+    // Staged photo attachments in Telegram composer
+    let stagedImages = [];
+    // Active checkout reservation modal state
+    let activeCheckoutReservationId = null;
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const colors = {
+        info: 'bg-slate-900 border-sky-500/50 text-sky-200',
+        success: 'bg-slate-900 border-emerald-500/50 text-emerald-200',
+        warning: 'bg-slate-900 border-amber-500/50 text-amber-200',
+        error: 'bg-slate-900 border-rose-500/50 text-rose-200',
+      };
+      el.className = `p-3.5 rounded-xl border shadow-xl text-xs font-medium transition-all ${colors[type] || colors.info}`;
+      el.innerHTML = message;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 4800);
+    }
+
+    async function refreshState() {
+      const qs = currentPreviewToken ? `?preview_token=${encodeURIComponent(currentPreviewToken)}` : '';
+      const res = await fetch(`/api/shop/${SHOP_ID}/state${qs}`);
+      if (res.ok) {
+        appState = await res.json();
+        renderAll();
+      }
+    }
+
+    function renderAll() {
+      renderHeaderAndPreviewBanner();
+      renderStorefrontProducts();
+      renderOrdersList();
+      renderChatMessages();
+    }
+
+    function renderHeaderAndPreviewBanner() {
+      const shop = appState.shop;
+      document.getElementById('shop-name-title').textContent = shop.name;
+      document.getElementById('merchant-badge').textContent = `payee: ${shop.paypal_merchant_id}`;
+      document.getElementById('hero-shop-currency').textContent = `(${shop.currency})`;
+
+      const banner = document.getElementById('preview-banner');
+      if (currentPreviewToken && appState.preview) {
+        banner.classList.remove('hidden');
+        document.getElementById('preview-token-pill').textContent = `token: ${currentPreviewToken}`;
+        const rem = appState.preview.remaining_seconds || 0;
+        const m = String(Math.floor(rem / 60)).padStart(2, '0');
+        const s = String(rem % 60).padStart(2, '0');
+        const ttlEl = document.getElementById('preview-ttl-label');
+        if (appState.preview.is_valid) {
+          ttlEl.textContent = `⏳ Дійсний ще: ${m}:${s}`;
+        } else {
+          ttlEl.textContent = `⚠️ Токен недійсний (${appState.preview.status})`;
+        }
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      // Render active reservations bar if any exist
+      const resBar = document.getElementById('active-reservations-bar');
+      const activeRes = appState.active_reservations || [];
+      if (activeRes.length > 0) {
+        resBar.classList.remove('hidden');
+        resBar.innerHTML = activeRes.map(r => {
+          const m = String(Math.floor(r.remaining_seconds / 60)).padStart(2, '0');
+          const s = String(r.remaining_seconds % 60).padStart(2, '0');
+          return `
+            <div class="flex flex-wrap items-center justify-between w-full gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+              <div class="text-amber-200">
+                🔒 <b>Активний 15-хвилинний резерв (#${r.id}):</b> утримує <b>${r.buyer_label}</b> (PayPal Order: <code class="mono">${r.paypal_order_id}</code>) • Залишилось: <b>${m}:${s}</b>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="reopenReservationModal(${r.id})" class="px-2.5 py-1 rounded bg-[#ffc439] text-slate-950 font-bold hover:bg-[#f4b41a]">
+                  Відкрити вікно PayPal (${r.buyer_label})
+                </button>
+                <button onclick="cancelPayPalReservationById(${r.id}, 'Симуляція завершення 15 хвилин / скасування')" class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-200 border border-rose-500/30 hover:bg-rose-500/30">
+                  ⏩ Зняти резерв (15 хв)
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        resBar.classList.add('hidden');
+        resBar.innerHTML = '';
+      }
+    }
+
+    function renderStorefrontProducts() {
+      const grid = document.getElementById('products-grid');
+      const products = appState.products || [];
+      document.getElementById('catalog-count-badge').textContent = products.length;
+      const sym = appState.shop.currency === 'UAH' ? '₴' : '$';
+
+      grid.innerHTML = products.map(p => {
+        const variants = p.variants || [];
+        // Pick default variant if not selected
+        if (!selectedVariants[p.id] && variants.length > 0) {
+          const firstAvail = variants.find(v => v.available_stock > 0) || variants[0];
+          selectedVariants[p.id] = firstAvail.id;
+        }
+        const currentVarId = selectedVariants[p.id];
+        const activeVariant = variants.find(v => v.id === currentVarId) || variants[0];
+
+        const isDraft = p.is_draft_preview;
+        const borderClass = isDraft
+          ? 'border-2 border-amber-400 draft-glow bg-slate-900'
+          : 'border border-slate-800 hover:border-slate-700 bg-slate-900/80';
+
+        // Strict Fact Extracting audit pill
+        const attrs = p.attributes || {};
+        const nullFields = Object.entries(attrs).filter(([_, v]) => v === null).map(([k]) => k);
+
+        // Reservation / Stock status for selected variant
+        let checkoutButtonHtml = '';
+        if (p.id < 0) {
+          checkoutButtonHtml = `
+            <div class="w-full py-2.5 px-3 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 text-center text-xs font-bold">
+              👁 Режим прев'ю — опублікуйте чернетку в боті для активації PayPal
+            </div>
+          `;
+        } else if (!activeVariant || activeVariant.stock_quantity <= 0) {
+          checkoutButtonHtml = `
+            <button disabled class="w-full py-2.5 px-4 rounded-xl bg-slate-800 text-slate-500 font-bold text-xs cursor-not-allowed">
+              🚫 Випродано (Out of stock)
+            </button>
+          `;
+        } else if (activeVariant.available_stock <= 0 && activeVariant.stock_reserved > 0) {
+          const m = String(Math.floor((activeVariant.reservation_remaining_seconds || 890) / 60)).padStart(2, '0');
+          const s = String((activeVariant.reservation_remaining_seconds || 890) % 60).padStart(2, '0');
+          checkoutButtonHtml = `
+            <div class="space-y-1.5">
+              <div class="w-full py-2 px-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-center text-xs font-bold">
+                ⏳ Товар зарезервовано іншим покупцем (${activeVariant.reserved_by || 'Покупець А'}) • ${m}:${s}
+              </div>
+              <button onclick="initiatePayPalCheckout(${p.id}, ${activeVariant.id})" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition">
+                Спробувати купити як ${currentBuyer.label} (Перевірити блокування)
+              </button>
+            </div>
+          `;
+        } else {
+          checkoutButtonHtml = `
+            <button onclick="initiatePayPalCheckout(${p.id}, ${activeVariant.id})" class="w-full py-2.5 px-4 rounded-xl bg-[#ffc439] hover:bg-[#f4b41a] text-slate-950 font-extrabold text-xs md:text-sm transition shadow-md flex items-center justify-center gap-2">
+              <span>Сплатити через</span>
+              <span class="italic font-black">PayPal</span>
+              <span>• ${sym}${Number(p.price).toFixed(2)}</span>
+            </button>
+          `;
+        }
+
+        return `
+          <article class="rounded-2xl overflow-hidden flex flex-col justify-between transition ${borderClass}">
+            <div>
+              <!-- Image + Badges -->
+              <div class="relative h-52 bg-slate-950 overflow-hidden">
+                <img src="${(p.images && p.images[0]) || '/static/assets/green_hoodie.svg'}" alt="${p.title}" class="w-full h-full object-contain p-2" />
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur text-[11px] font-semibold text-slate-300 border border-slate-700">
+                  ${p.category}
+                </span>
+                ${p.draft_badge ? `
+                  <span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-xs shadow-lg">
+                    ${p.draft_badge}
+                  </span>
+                ` : ''}
+              </div>
+
+              <!-- Content -->
+              <div class="p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 class="font-bold text-base text-white leading-snug">${p.title_uk || p.title}</h4>
+                    <div class="text-xs text-slate-400">${p.title}</div>
+                  </div>
+                  <div class="text-right">
+                    ${p.old_price ? `<div class="text-xs line-through text-slate-500 font-semibold">${sym}${Number(p.old_price).toFixed(2)}</div>` : ''}
+                    <div class="text-lg font-extrabold ${p.draft_badge ? 'text-amber-400' : 'text-emerald-400'}">
+                      ${sym}${Number(p.price).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs text-slate-300 mt-2 line-clamp-2">${p.description}</p>
+
+                <!-- Variants Selector -->
+                <div class="mt-3">
+                  <div class="text-[11px] text-slate-400 mb-1.5 font-medium">Оберіть розмір (залишки в реальному часі):</div>
+                  <div class="flex flex-wrap gap-1.5">
+                    ${variants.map(v => {
+                      const isSel = v.id === (activeVariant && activeVariant.id);
+                      const isOut = v.stock_quantity <= 0;
+                      const isLocked = v.available_stock <= 0 && v.stock_reserved > 0;
+                      let badgeStyle = isSel
+                        ? 'bg-blue-600 text-white border-blue-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-700 hover:border-slate-500';
+                      if (isOut) badgeStyle = 'bg-slate-950/60 text-slate-600 border-slate-800 line-through';
+                      if (v.draft_change) badgeStyle = 'bg-amber-400/20 text-amber-300 border-amber-400 font-bold';
+
+                      return `
+                        <button
+                          type="button"
+                          onclick="selectVariant(${p.id}, ${v.id})"
+                          class="px-2.5 py-1 rounded-lg border text-xs font-semibold transition flex items-center gap-1 ${badgeStyle}"
+                        >
+                          <span>${v.size}</span>
+                          <span class="text-[10px] opacity-80">
+                            ${isLocked ? '🔒 бронь' : (isOut ? '(0 шт)' : `(${v.available_stock} шт)`)}
+                          </span>
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                  ${activeVariant && activeVariant.draft_change ? `
+                    <div class="mt-1.5 text-[11px] font-semibold text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded px-2 py-1">
+                      ⚡ Прев'ю зміни: Розмір ${activeVariant.size} — ${activeVariant.draft_change}
+                    </div>
+                  ` : ''}
+                </div>
+
+                <!-- Zero Hallucination Audit Pill -->
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>🛡 Zero Hallucination:</span>
+                  <span class="mono text-slate-400" title="Незазначені продавцем характеристики строго залишаються null">
+                    ${nullFields.slice(0, 2).map(k => `${k}: null`).join(', ')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PayPal Checkout CTA -->
+            <div class="p-4 pt-0">
+              ${checkoutButtonHtml}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderOrdersList() {
+      const container = document.getElementById('orders-list');
+      const orders = appState.orders || [];
+      document.getElementById('orders-count-badge').textContent = `${orders.length} замовлень`;
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="text-xs text-slate-400 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 text-center">
+            Ще немає оплачених замовлень. Натисніть <b>«Сплатити через PayPal»</b> на будь-якому товарі (наприклад, Кросівки 43 розміру для Сценарію 3), щоб створити замовлення <b>#102</b>!
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = orders.map(o => {
+        const isShipped = o.tracking_status === 'SHIPPED' || o.paypal_tracker_synced;
+        return `
+          <div class="rounded-xl bg-slate-950 border border-slate-800 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-sm text-white">Замовлення #${o.id}</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">
+                  PayPal PAID ($${Number(o.amount).toFixed(2)})
+                </span>
+                ${isShipped ? `
+                  <span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40 font-semibold">
+                    🚚 Відправлено (${o.carrier}: ${o.tracking_number})
+                  </span>
+                ` : `
+                  <span class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    Очікує ТТН від продавця в боті
+                  </span>
+                `}
+              </div>
+              <div class="text-slate-400">
+                Товар: <b class="text-slate-200">${o.product_title} (Розмір ${o.variant_size})</b> • Покупець: <code class="mono text-slate-300">${o.buyer_email}</code>
+              </div>
+              <div class="mono text-[11px] text-slate-500">
+                PayPal Order: ${o.paypal_order_id} • Capture: ${o.paypal_capture_id} • Payee: ${o.payee_merchant_id}
+              </div>
+            </div>
+            <div>
+              ${!isShipped ? `
+                <button onclick="runScenarioPreset('scenario_4_fulfillment')" class="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 font-semibold transition">
+                  📦 Скинути ТТН у бот (Сценарій 4)
+                </button>
+              ` : `
+                <span class="mono text-[11px] text-emerald-400 font-semibold">✓ Синхронізовано з PayPal Tracking API</span>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderChatMessages() {
+      const box = document.getElementById('chat-messages');
+      const messages = appState.messages || [];
+
+      box.innerHTML = messages.map(m => {
+        const isSeller = m.sender === 'seller';
+        const alignClass = isSeller ? 'ml-auto bg-[#2b5278] text-white' : 'mr-auto bg-[#182533] text-slate-100 border border-slate-800';
+
+        let mediaHtml = '';
+        if (m.media && m.media.length > 0) {
+          const photos = m.media.filter(x => x.type === 'photo');
+          const voices = m.media.filter(x => x.type === 'voice');
+          if (photos.length > 0) {
+            mediaHtml += `
+              <div class="grid ${photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 mb-2">
+                ${photos.map(ph => `<img src="${ph.url}" class="rounded-lg h-28 w-full object-contain bg-slate-950 p-1 border border-slate-700/60" />`).join('')}
+              </div>
+            `;
+          }
+          if (voices.length > 0) {
+            mediaHtml += voices.map(v => `
+              <div class="flex items-center gap-2 bg-slate-950/50 rounded-lg px-2.5 py-1.5 mb-2 border border-sky-400/30">
+                <span class="w-6 h-6 rounded-full bg-sky-400 text-slate-950 flex items-center justify-center text-xs font-bold">▶</span>
+                <div class="flex-1">
+                  <div class="h-1.5 bg-sky-400/30 rounded-full overflow-hidden">
+                    <div class="w-4/5 h-full bg-sky-400"></div>
+                  </div>
+                  <div class="text-[10px] text-sky-200 mt-0.5">Голосове повідомлення (${v.duration || '0:06'}) • Розпізнано AI</div>
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+
+        let buttonsHtml = '';
+        if (m.buttons && m.buttons.length > 0) {
+          buttonsHtml = `
+            <div class="mt-2.5 pt-2 border-t border-slate-700/70 flex flex-col gap-1.5">
+              ${m.buttons.map(b => {
+                if (b.action === 'OPEN_PREVIEW') {
+                  const tok = (b.url || '').split('preview_token=')[1] || '';
+                  return `
+                    <button
+                      type="button"
+                      onclick="activatePreviewToken('${tok}')"
+                      class="w-full py-1.5 px-3 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 text-xs font-bold transition"
+                    >
+                      ${b.label}
+                    </button>
+                  `;
+                }
+                const styleMap = {
+                  success: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+                  danger: 'bg-rose-600/25 hover:bg-rose-600/40 text-rose-200 border border-rose-500/40',
+                  warning: 'bg-amber-500 hover:bg-amber-400 text-slate-950',
+                  primary: 'bg-sky-600 hover:bg-sky-500 text-white',
+                  secondary: 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40',
+                  done: 'bg-slate-800 text-slate-400 cursor-default',
+                };
+                const btnCls = styleMap[b.style] || styleMap.primary;
+                const disAttr = b.disabled ? 'disabled opacity-50 cursor-not-allowed' : '';
+                const customPriceArg = b.custom_price ? `, ${b.custom_price}` : ', null';
+                return `
+                  <button
+                    type="button"
+                    ${disAttr}
+                    onclick="triggerDraftAction(${b.draft_id}, '${b.action}'${customPriceArg})"
+                    class="w-full py-1.5 px-3 rounded-lg text-xs font-bold transition ${btnCls} ${disAttr}"
+                  >
+                    ${b.label}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="max-w-[92%] rounded-2xl p-3 text-xs leading-relaxed shadow ${alignClass}">
+            ${mediaHtml}
+            <div class="whitespace-pre-line">${m.text}</div>
+            ${buttonsHtml}
+            <div class="text-[10px] opacity-60 text-right mt-1">${m.created_at}</div>
+          </div>
+        `;
+      }).join('');
+
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function selectVariant(productId, variantId) {
+      selectedVariants[productId] = variantId;
+      renderStorefrontProducts();
+    }
+
+    function switchBuyerPersona(persona) {
+      const btnA = document.getElementById('btn-buyer-a');
+      const btnB = document.getElementById('btn-buyer-b');
+      const ind = document.getElementById('active-buyer-indicator');
+      if (persona === 'B') {
+        currentBuyer = {
+          persona: 'B',
+          label: 'Покупець Б',
+          sessionId: 'session_buyer_b_002',
+          email: 'second.buyer@example.com'
+        };
+        btnB.className = 'px-2.5 py-1 rounded-md font-semibold bg-amber-400 text-slate-950 transition';
+        btnA.className = 'px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition';
+        ind.textContent = '👥 Покупець Б (second.buyer@example.com)';
+        ind.className = 'text-sm font-bold text-amber-400 mt-0.5';
+        showToast('Перемкнуто на <b>Покупця Б</b>. Спробуйте купити зарезервовані Кросівки 43 розміру!', 'warning');
+      } else {
+        currentBuyer = {
+          persona: 'A',
+          label: 'Покупець А',
+          sessionId: 'session_buyer_a_001',
+          email: 'buyer@example.com'
+        };
+        btnA.className = 'px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition';
+        btnB.className = 'px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition';
+        ind.textContent = '👤 Покупець А (buyer@example.com)';
+        ind.className = 'text-sm font-bold text-blue-400 mt-0.5';
+        showToast('Активна сесія: <b>Покупець А</b>', 'info');
+      }
+      renderStorefrontProducts();
+    }
+
+    async function runScenarioPreset(presetKey) {
+      const res = await fetch('/api/bot/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id: SHOP_ID,
+          scenario_preset: presetKey
+        })
+      });
+      const data = await res.json();
+      if (data.state) {
+        appState = data.state;
+        renderAll();
+      }
+      if (data.draft && data.draft.preview_token) {
+        showToast(`Чернетку створено! Ви можете відкрити прев'ю або натиснути кнопку підтвердження в Telegram-боті.`, 'info');
+      }
+    }
+
+    function highlightScenario3() {
+      // Find Sneakers Air Pulse (size 43) and trigger Buyer A reservation
+      const sneakers = (appState.products || []).find(p => (p.title_uk || '').includes('Кросівки') || p.title.includes('Sneakers'));
+      if (!sneakers) {
+        showToast('Кросівки не знайдено. Скиньте демо-дані.', 'warning');
+        return;
+      }
+      const var43 = (sneakers.variants || []).find(v => v.size === '43') || sneakers.variants[0];
+      if (var43) {
+        selectedVariants[sneakers.id] = var43.id;
+        initiatePayPalCheckout(sneakers.id, var43.id);
+      }
+    }
+
+    async function submitSellerMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('bot-text-input');
+      const text = input.value.trim();
+      if (!text && stagedImages.length === 0) return;
+
+      input.value = '';
+      const imgs = [...stagedImages];
+      stagedImages = [];
+      renderStagedAttachments();
+
+      const res = await fetch('/api/bot/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id: SHOP_ID,
+          text: text,
+          image_urls: imgs
+        })
+      });
+      const data = await res.json();
+      if (data.state) {
+        appState = data.state;
+        renderAll();
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/bot/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.ok && data.url) {
+        stagedImages.push(data.url);
+        renderStagedAttachments();
+        showToast(`Фото <b>${file.name}</b> прикріплено до повідомлення`, 'info');
+      }
+      e.target.value = '';
+    }
+
+    function renderStagedAttachments() {
+      const bar = document.getElementById('staged-attachments');
+      if (stagedImages.length === 0) {
+        bar.classList.add('hidden');
+        bar.innerHTML = '';
+        return;
+      }
+      bar.classList.remove('hidden');
+      bar.innerHTML = stagedImages.map((u, idx) => `
+        <div class="relative w-12 h-12 rounded-lg bg-slate-950 border border-slate-700 p-1">
+          <img src="${u}" class="w-full h-full object-contain" />
+          <button type="button" onclick="removeStagedImage(${idx})" class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px]">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function removeStagedImage(idx) {
+      stagedImages.splice(idx, 1);
+      renderStagedAttachments();
+    }
+
+    function toggleVoiceRecording() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        // Fallback: prefill voice transcript example if browser doesn't support Web Speech API
+        const input = document.getElementById('bot-text-input');
+        input.value = "Зелена кофта, м'яка, є розміри S і M, ціна 40 баксів, залишків по 3 штуки кожного";
+        stagedImages = ['/static/assets/green_hoodie.svg', '/static/assets/green_hoodie_back.svg'];
+        renderStagedAttachments();
+        showToast('Голосовий шаблон підставлено у поле вводу! Натисніть ➤ для відправки.', 'info');
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'uk-UA';
+      const btn = document.getElementById('btn-voice-record');
+      btn.classList.add('bg-rose-600', 'text-white');
+      showToast('🎙 Говоріть українською... (слухаю)', 'info');
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('bot-text-input').value = transcript;
+        btn.classList.remove('bg-rose-600', 'text-white');
+      };
+      recognition.onerror = () => {
+        btn.classList.remove('bg-rose-600', 'text-white');
+      };
+      recognition.onend = () => {
+        btn.classList.remove('bg-rose-600', 'text-white');
+      };
+      recognition.start();
+    }
+
+    async function triggerDraftAction(draftId, action, customPrice = null) {
+      const res = await fetch('/api/bot/draft-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id: SHOP_ID,
+          draft_id: draftId,
+          action: action,
+          custom_price: customPrice
+        })
+      });
+      const data = await res.json();
+      if (action === 'PUBLISH' || action === 'CANCEL') {
+        currentPreviewToken = null;
+        window.history.replaceState({}, '', `/shop/${SHOP_ID}`);
+      }
+      if (data.state) {
+        appState = data.state;
+      }
+      await refreshState();
+      showToast(data.message, data.ok ? 'success' : 'warning');
+    }
+
+    async function activatePreviewToken(token) {
+      currentPreviewToken = token;
+      window.history.replaceState({}, '', `/shop/${SHOP_ID}?preview_token=${encodeURIComponent(token)}`);
+      await refreshState();
+      showToast('👁 Увімкнено <b>Режим перегляду продавця (Preview Mode)</b> з жовтими бейджами змін!', 'warning');
+    }
+
+    async function exitPreviewMode() {
+      currentPreviewToken = null;
+      window.history.replaceState({}, '', `/shop/${SHOP_ID}`);
+      await refreshState();
+    }
+
+    async function initiatePayPalCheckout(productId, variantId) {
+      const res = await fetch('/api/checkout/reserve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id: SHOP_ID,
+          product_id: productId,
+          variant_id: variantId,
+          buyer_session_id: currentBuyer.sessionId,
+          buyer_label: currentBuyer.label
+        })
+      });
+      const data = await res.json();
+      if (data.state) {
+        appState = data.state;
+        renderAll();
+      }
+      if (!res.ok || !data.ok) {
+        showToast(data.message || 'Товар зарезервовано іншим покупцем!', 'error');
+        return;
+      }
+
+      activeCheckoutReservationId = data.reservation_id;
+      const prod = (appState.products || []).find(p => p.id === productId);
+      const variant = prod ? (prod.variants || []).find(v => v.id === variantId) : null;
+
+      document.getElementById('modal-item-title').textContent = `${prod ? (prod.title_uk || prod.title) : 'Товар'} (Розмір ${variant ? variant.size : ''})`;
+      document.getElementById('modal-item-amount').textContent = `$${prod ? Number(prod.price).toFixed(2) : '0.00'} USD`;
+      document.getElementById('modal-paypal-order-id').textContent = data.paypal_order.id;
+      document.getElementById('modal-payee-id').textContent = appState.shop.paypal_merchant_id;
+      document.getElementById('modal-buyer-email').value = currentBuyer.email;
+
+      document.getElementById('paypal-modal').classList.remove('hidden');
+      showToast(data.message, 'success');
+    }
+
+    function reopenReservationModal(reservationId) {
+      const r = (appState.active_reservations || []).find(x => x.id === reservationId);
+      if (!r) return;
+      activeCheckoutReservationId = r.id;
+      const prod = (appState.products || []).find(p => p.id === r.product_id);
+      const variant = prod ? (prod.variants || []).find(v => v.id === r.variant_id) : null;
+      document.getElementById('modal-item-title').textContent = `${prod ? (prod.title_uk || prod.title) : 'Товар'} (Розмір ${variant ? variant.size : ''})`;
+      document.getElementById('modal-item-amount').textContent = `$${prod ? Number(prod.price).toFixed(2) : '0.00'} USD`;
+      document.getElementById('modal-paypal-order-id').textContent = r.paypal_order_id;
+      document.getElementById('modal-payee-id').textContent = appState.shop.paypal_merchant_id;
+      document.getElementById('paypal-modal').classList.remove('hidden');
+    }
+
+    function keepModalMinimizedForBuyerBTest() {
+      document.getElementById('paypal-modal').classList.add('hidden');
+      switchBuyerPersona('B');
+    }
+
+    async function confirmPayPalCapture() {
+      if (!activeCheckoutReservationId) return;
+      const email = document.getElementById('modal-buyer-email').value.trim() || 'buyer@example.com';
+      const res = await fetch('/api/checkout/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id: SHOP_ID,
+          reservation_id: activeCheckoutReservationId,
+          buyer_email: email,
+          buyer_name: currentBuyer.label
+        })
+      });
+      const data = await res.json();
+      document.getElementById('paypal-modal').classList.add('hidden');
+      activeCheckoutReservationId = null;
+      if (data.state) {
+        appState = data.state;
+        renderAll();
+      }
+      showToast(`🎉 Замовлення #${data.order_id} успішно оплачено через PayPal! Пуш-сповіщення відправлено продавцю в Telegram.`, 'success');
+    }
+
+    async function cancelPayPalReservation(reason) {
+      if (!activeCheckoutReservationId) {
+        document.getElementById('paypal-modal').classList.add('hidden');
+        return;
+      }
+      await cancelPayPalReservationById(activeCheckoutReservationId, reason);
+      document.getElementById('paypal-modal').classList.add('hidden');
+      activeCheckoutReservationId = null;
+    }
+
+    async function cancelPayPalReservationById(resId, reason) {
+      const res = await fetch('/api/checkout/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservation_id: resId,
+          reason: reason
+        })
+      });
+      const data = await res.json();
+      if (data.state) {
+        appState = data.state;
+        renderAll();
+      }
+      showToast(data.message, 'info');
+    }
+
+    function toggleStudioPanel() {
+      const studio = document.getElementById('studio-column');
+      const store = document.getElementById('storefront-column');
+      if (studio.classList.contains('hidden')) {
+        studio.classList.remove('hidden');
+        store.className = 'lg:col-span-7 xl:col-span-7 flex flex-col gap-6';
+      } else {
+        studio.classList.add('hidden');
+        store.className = 'lg:col-span-12 xl:col-span-12 flex flex-col gap-6';
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('cfg-shop-currency').value = appState.shop.currency;
+      document.getElementById('cfg-merchant-id').value = appState.shop.paypal_merchant_id;
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    async function simulatePayPalOAuthConnect() {
+      const res = await fetch(`/api/paypal/connect/${SHOP_ID}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        appState = data.state;
+        document.getElementById('cfg-merchant-id').value = data.merchant_id;
+        renderAll();
+        showToast(`✅ PayPal OAuth Partner Referrals підключено! Merchant ID: <b>${data.merchant_id}</b>`, 'success');
+      }
+    }
+
+    async function saveRuntimeSettings() {
+      const currency = document.getElementById('cfg-shop-currency').value;
+      const merchantId = document.getElementById('cfg-merchant-id').value;
+      const geminiKey = document.getElementById('cfg-gemini-key').value;
+      const ppClient = document.getElementById('cfg-paypal-client').value;
+      const ppSecret = document.getElementById('cfg-paypal-secret').value;
+
+      const res = await fetch('/api/config/runtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_currency: currency,
+          paypal_merchant_id: merchantId,
+          gemini_api_key: geminiKey || null,
+          paypal_client_id: ppClient || null,
+          paypal_client_secret: ppSecret || null
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        appState = data.state;
+        renderAll();
+        closeSettingsModal();
+        showToast('✅ Налаштування магазину та API ключів збережено!', 'success');
+      }
+    }
+
+    async function resetDemoData() {
+      currentPreviewToken = null;
+      window.history.replaceState({}, '', `/shop/${SHOP_ID}`);
+      const res = await fetch('/api/demo/reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        appState = data.state;
+        selectedVariants = {};
+        renderAll();
+        showToast('↺ Демо-дані магазину #123 скинуто до початкового стану!', 'info');
+      }
+    }
+
+    // Initialize UI on page load
+    renderAll();
+  </script>
+</body>
+</html>
